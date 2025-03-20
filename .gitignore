@@ -1,0 +1,52 @@
+# Ignore all .jpg files
+*.jpg
+
+# Ignore all .jpeg files (common variant)
+*.jpeg
+
+# Ignore all .png files
+*.png
+
+# Other common ignore patterns
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IDE and editor specific files
+.vscode/
+.idea/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Build directories
+build/
+dist/
+
+# Log files
+*.log
+
+# Virtual environment
+venv/
+env/
+
+# image files
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.ico
+*.webp
+*.svg
+*.tiff
+*.tif
+*.psd
+*.ai
+*.eps
+*.cdr
+*.raw
+*.svgz
+*.svg.gz

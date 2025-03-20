@@ -98,6 +98,38 @@ def gaussian_upsampling(image, sigma=1.0, kernel_size=7, scale_factor=2):
 
     return blurred_image
 
+def build_gaussian_pyramid(image_path, sigma=1.0, kernel_size=7, threshold=8):
+    # Read the image and convert it to float32
+    img = Image.open(image_path)
+    img_array = np.array(img, dtype=np.float32) / 255.0
+
+    output_dir = "gaussian_pyramid"
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Downsampling loop
+    current = img_array.copy()
+    down_steps = 0
+    print("=== Downsampling Process ===")
+
+    while True:
+        h, w = current.shape[:2]
+        print(f"Current size: {w}x{h}")
+
+        if h <= threshold or w <= threshold:
+            break
+
+        current = gaussian_downsampling(current, sigma, kernel_size)
+        down_steps += 1
+        
+        save_img = np.clip(current * 255, 0, 255).astype(np.uint8)
+        filename = os.path.join(output_dir, f"down_{down_steps}.png")
+        Image.fromarray(save_img).save(filename)
+        print(f"Saved: {filename}")
+    
+    print("Gaussian Pyramid Built!")
+
+    return down_steps
+
 # TODO: Check the following examples
 # 错误示例：先降采样再滤波
 def wrong_downsample(image):
@@ -125,52 +157,11 @@ def main():
                         help='Threshold size to stop downsampling (default: 8)')
     parser.add_argument('-s', '--sigma', type=float, default=1.0,
                         help='Sigma parameter for the Gaussian kernel (default: 1.0)')
-    parser.add_argument('-k', '--kernel', type=int, default=7,
+    parser.add_argument('-k', '--kernel_size', type=int, default=7,
                         help='Gaussian kernel size (odd number, default: 7)')
 
     args = parser.parse_args()
-
-    # Read the image and convert it to float32
-    img = Image.open(args.input)
-    img_array = np.array(img, dtype=np.float32) / 255.0
-
-    output_dir = "output_gaussian"
-    os.makedirs(output_dir, exist_ok=True)
-    
-    # Downsampling loop
-    current = img_array.copy()
-    down_steps = 0
-    print("=== Downsampling Process ===")
-
-    while True:
-        h, w = current.shape[:2]
-        print(f"Current size: {w}x{h}")
-
-        if h <= args.threshold or w <= args.threshold:
-            break
-
-        current = gaussian_downsampling(current, args.sigma, args.kernel)
-        down_steps += 1
-        
-        save_img = np.clip(current * 255, 0, 255).astype(np.uint8)
-        filename = os.path.join(output_dir, f"down_{down_steps}.png")
-        Image.fromarray(save_img).save(filename)
-        print(f"Saved: {filename}")
-
-    # Upsampling loop
-    print("\n=== Upsampling Process ===")
-    up_steps = 0
-    for step in range(down_steps):
-        current = gaussian_upsampling(current, args.sigma, args.kernel)
-        h, w = current.shape[:2]
-        print(f"Size after upsampling {step+1}/{down_steps}: {w}x{h}")
-
-        up_steps += 1
-        
-        save_img = np.clip(current * 255, 0, 255).astype(np.uint8)
-        filename = os.path.join(output_dir, f"up_{up_steps}.png")
-        Image.fromarray(save_img).save(filename)
-        print(f"Saved: {filename}")
+    build_gaussian_pyramid(args.input, args.sigma, args.kernel_size, args.threshold)
 
 if __name__ == "__main__":
     main()
