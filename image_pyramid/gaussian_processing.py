@@ -89,7 +89,6 @@ def gaussian_upsampling(image, sigma=1.0, kernel_size=7, scale_factor=2):
         upsampled_image[::scale_factor, ::scale_factor, :] = image
 
     # 2. create gaussian kernel
-    # TODO: check if the compensation is correct
     kernel = create_gaussian_kernel(sigma, kernel_size)
     kernel *= (scale_factor ** 2)  # compensate for the brightness loss due to zero insertion
 
@@ -111,6 +110,11 @@ def build_gaussian_pyramid(image_path, sigma=1.0, kernel_size=7, threshold=8):
     down_steps = 0
     print("=== Downsampling Process ===")
 
+    save_img = np.array(img).astype(np.uint8)
+    filename = os.path.join(output_dir, f"down_{down_steps}.png")
+    Image.fromarray(save_img).save(filename)
+    print(f"Saved: {filename}")
+    
     while True:
         h, w = current.shape[:2]
         print(f"Current size: {w}x{h}")

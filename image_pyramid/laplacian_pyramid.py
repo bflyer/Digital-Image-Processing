@@ -1,3 +1,5 @@
+# usage: python laplacian_pyramid.py --input gaussian_pyramid -t 8 -s 1.0 -k 7
+
 from gaussian_processing import *
 
 def build_laplacian_pyramid(gaussian_pyramid_path, sigma=1.0, kernel_size=7):
@@ -29,6 +31,7 @@ def build_laplacian_pyramid(gaussian_pyramid_path, sigma=1.0, kernel_size=7):
 
         # compute laplacian
         laplacian = g_current - g_next_up
+
         laplacian_pyramid.append(laplacian)
 
     # the highest level is the same as the original image
@@ -36,14 +39,14 @@ def build_laplacian_pyramid(gaussian_pyramid_path, sigma=1.0, kernel_size=7):
 
     print("Laplacian Pyramid Built!")
 
-    # 3. save laplacian pyramid
+    # 3. save normalized laplacian pyramid
     output_dir = "laplacian_pyramid"
     os.makedirs(output_dir, exist_ok=True)
 
+    offset = 0.5  # assume laplacian is in [-0.5, 0.5]
     for i, image in enumerate(laplacian_pyramid):
-        save_img = np.clip(image * 255, 0, 255).astype(np.uint8)
-        
-        filename = os.path.join(output_dir, f"laplacian_{i+1}.png")
+        save_img = np.clip((image + offset) * 255, 0, 255).astype(np.uint8)
+        filename = os.path.join(output_dir, f"laplacian_{i}.png")
         Image.fromarray(save_img).save(filename)
 
 def main():
