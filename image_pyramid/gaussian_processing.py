@@ -97,9 +97,12 @@ def gaussian_upsampling(image, sigma=1.0, kernel_size=7, scale_factor=2):
 
     return blurred_image
 
-def build_gaussian_pyramid(image_path, sigma=1.0, kernel_size=7, threshold=8):
+def build_gaussian_pyramid(image_path, sigma=1.0, kernel_size=7, threshold=8, gray_style=False):
     # Read the image and convert it to float32
-    img = Image.open(image_path)
+    if gray_style:
+        img = Image.open(image_path).convert("L")
+    else:
+        img = Image.open(image_path)
     img_array = np.array(img, dtype=np.float32) / 255.0
 
     output_dir = "gaussian_pyramid"
@@ -110,6 +113,8 @@ def build_gaussian_pyramid(image_path, sigma=1.0, kernel_size=7, threshold=8):
     down_steps = 0
     print("=== Downsampling Process ===")
 
+    gaussian_pyramid = [img_array]
+
     save_img = np.array(img).astype(np.uint8)
     filename = os.path.join(output_dir, f"down_{down_steps}.png")
     Image.fromarray(save_img).save(filename)
@@ -117,7 +122,6 @@ def build_gaussian_pyramid(image_path, sigma=1.0, kernel_size=7, threshold=8):
     
     while True:
         h, w = current.shape[:2]
-        print(f"Current size: {w}x{h}")
 
         if h <= threshold or w <= threshold:
             break
@@ -125,6 +129,7 @@ def build_gaussian_pyramid(image_path, sigma=1.0, kernel_size=7, threshold=8):
         current = gaussian_downsampling(current, sigma, kernel_size)
         down_steps += 1
         
+        gaussian_pyramid.append(current)
         save_img = np.clip(current * 255, 0, 255).astype(np.uint8)
         filename = os.path.join(output_dir, f"down_{down_steps}.png")
         Image.fromarray(save_img).save(filename)
@@ -132,7 +137,7 @@ def build_gaussian_pyramid(image_path, sigma=1.0, kernel_size=7, threshold=8):
     
     print("Gaussian Pyramid Built!")
 
-    return down_steps
+    return gaussian_pyramid
 
 # TODO: Check the following examples
 # 错误示例：先降采样再滤波

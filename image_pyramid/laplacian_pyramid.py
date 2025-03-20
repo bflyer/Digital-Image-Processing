@@ -2,17 +2,17 @@
 
 from gaussian_processing import *
 
-def build_laplacian_pyramid(gaussian_pyramid_path, sigma=1.0, kernel_size=7):
+def build_laplacian_pyramid(gaussian_pyramid=[], sigma=1.0, kernel_size=7, gaussian_pyramid_path="", load_from_path=False):
     """build laplacian pyramid"""
-    # 1. Load gaussian pyramid
-    gaussian_pyramid = []
-
-    for filename in os.listdir(gaussian_pyramid_path):
-        if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif')):
-            img_path = os.path.join(gaussian_pyramid_path, filename)
-            img = Image.open(img_path)
-            img_array = np.array(img, dtype=np.float32) / 255.0
-            gaussian_pyramid.append(img_array)
+    # 1. Load gaussian pyramid if necessary
+    if load_from_path:
+        gaussian_pyramid = []
+        for filename in os.listdir(gaussian_pyramid_path):
+            if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif')):
+                img_path = os.path.join(gaussian_pyramid_path, filename)
+                img = Image.open(img_path)
+                img_array = np.array(img, dtype=np.float32) / 255.0
+                gaussian_pyramid.append(img_array)
 
     # 2. Build laplacian pyramid
     laplacian_pyramid = []
@@ -45,9 +45,14 @@ def build_laplacian_pyramid(gaussian_pyramid_path, sigma=1.0, kernel_size=7):
 
     offset = 0.5  # assume laplacian is in [-0.5, 0.5]
     for i, image in enumerate(laplacian_pyramid):
-        save_img = np.clip((image + offset) * 255, 0, 255).astype(np.uint8)
+        if i != len(laplacian_pyramid) - 1:
+            save_img = np.clip((image + offset) * 255, 0, 255).astype(np.uint8)
+        else:
+            save_img = np.clip(image * 255, 0, 255).astype(np.uint8)
         filename = os.path.join(output_dir, f"laplacian_{i}.png")
         Image.fromarray(save_img).save(filename)
+    
+    return laplacian_pyramid
 
 def main():
     parser = argparse.ArgumentParser(description='Gaussian Pyramid Processing Tool')

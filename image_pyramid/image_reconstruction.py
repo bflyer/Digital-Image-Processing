@@ -3,24 +3,33 @@
 from gaussian_processing import *
 from laplacian_pyramid import *
 
-def reconstruct_gaussian_pyramid(laplacian_pyramid_path, gaussian_top_path, sigma=1.0, kernel_size=7, offset=0.5):
-    """Reconstruct Gaussian Pyramid from Laplacian Pyramid and the top Gaussian level."""
+def reconstruct_gaussian_pyramid(laplacian_pyramid=[], sigma=1.0, kernel_size=7, offset=0.5, laplacian_pyramid_path="", load_from_path=False):
+    """
+        Reconstruct Gaussian Pyramid from Laplacian Pyramid 
+        (the top Laplacian is the same as the top Gaussian level).
+    """
     # 1. Load Laplacian Pyramid (sorted by level)
-    laplacian_pyramid = []
+    if load_from_path:
+        laplacian_pyramid = []
 
-    for filename in os.listdir(laplacian_pyramid_path):
-        if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif')):
-            img_path = os.path.join(laplacian_pyramid_path, filename)
-            img = Image.open(img_path)
-            img_array = np.array(img, dtype=np.float32) / 255.0 - offset
-            laplacian_pyramid.append(img_array)
+        for filename in os.listdir(laplacian_pyramid_path):
+            if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif')):
+                img_path = os.path.join(laplacian_pyramid_path, filename)
+                img = Image.open(img_path)
+                img_array = np.array(img, dtype=np.float32) / 255.0
+
+                # Check if this is the last image
+                if filename != sorted(os.listdir(laplacian_pyramid_path))[-1]:
+                    laplacian_pyramid.append(img_array - offset)
+                else:
+                    laplacian_pyramid.append(img_array)
     
-    # 2. Load the top Gaussian level
-    top_gaussian = np.array(Image.open(gaussian_top_path), dtype=np.float32) / 255.0
-    
-    # 3. Reconstruct from top to bottom
-    reconstructed_pyramid = [top_gaussian.copy()]
-    for i in range(len(laplacian_pyramid) - 2, -1, -1):  # build up-to-down
+    # 2. Reconstruct from top to bottom
+    reconstructed_pyramid = [laplacian_pyramid[-1]]
+    # top_gaussian = np.array(Image.open("gaussian_pyramid\down_8.png"), dtype=np.float32) / 255.0
+    # reconstructed_pyramid = [top_gaussian]
+
+    for i in range(len(laplacian_pyramid) - 2, -1, -1):  # build up-down
         current_gaussian = reconstructed_pyramid[len(reconstructed_pyramid) - 1]
         
         # Upsample the current Gaussian level
@@ -59,10 +68,9 @@ def main():
                         help='Offset for Laplasian pyramid (default: 0.5)')
     
     args = parser.parse_args()
-    # n_level = build_gaussian_pyramid(args.input, args.sigma, args.kernel_size, args.threshold)
-    n_level = 8
-    build_laplacian_pyramid("gaussian_pyramid", args.sigma, args.kernel_size)
-    reconstruct_gaussian_pyramid("laplacian_pyramid", f"gaussian_pyramid/down_{n_level}.png", args.sigma, args.kernel_size, args.offset)
+    gaussian_pyramid = build_gaussian_pyramid(args.input, args.sigma, args.kernel_size, args.threshold)
+    laplacian_pyramid = build_laplacian_pyramid(gaussian_pyramid, args.sigma, args.kernel_size)
+    reconstruct_gaussian_pyramid(laplacian_pyramid, args.sigma, args.kernel_size, args.offset)
 
 if __name__ == "__main__":
     main()
