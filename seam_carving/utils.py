@@ -102,15 +102,14 @@ def find_vertical_seam(energy, num_seam=1):
         seams.append(seam_reverse)
         
         # remove the seam
-        mask = np.ones((h, w), dtype=bool)
+        mask = np.zeros((h, w), dtype=bool)
         for i in range(h):
-            mask[i, seam_reverse[i]] = False
+            mask[i, seam_reverse[i]] = True
         
         # update for next round
-        energy = energy[mask].reshape((h, w-1))
+        energy[mask] = np.inf
         cost = energy.copy()
         path = np.zeros_like(cost, dtype=np.int32)
-        h, w = cost.shape
     
     # # TODO
     # plt.imsave('output_image.png', cost, cmap='gray')
@@ -175,13 +174,18 @@ def add_vertical_seam(image, seams):
     """
     h, w = image.shape[:2]
     
+    seams = np.array(seams)
+    seams_T = seams.T
+    seams_T = [sorted(row) for row in seams_T]
+    seams = np.array(seams_T).T
+    
+    count = 0
     if len(image.shape) == 3:
         output = np.zeros((h, w+1, 3))
-        # insert in reverse order to fit dimension change
-        for seam in seams[::-1]:
+        for seam in seams:
             output = np.zeros((h, w+1, 3))
             for i in range(h):
-                j = seam[i]
+                j = seam[i] + count
                 if j == 0:
                     # Left boundary case
                     output[i, j] = image[i, j]
@@ -190,17 +194,17 @@ def add_vertical_seam(image, seams):
                 else:
                     output[i, :j] = image[i, :j]
                     output[i, j] = (image[i, j-1] + image[i, j]) / 2
-                    output[i, j+1] = image[i, j]
-                    output[i, j+2:] = image[i, j+1:]
+                    output[i, j+1:] = image[i, j:]
             image = output
             w += 1
+            count += 1
             
     else:
         output = np.zeros((h, w+1))
-        for seam in seams[::-1]:
+        for seam in seams:
             output = np.zeros((h, w+1, 3))
             for i in range(h):
-                j = seam[i]
+                j = seam[i] + count
                 if j == 0:
                     output[i, j] = image[i, j]
                     output[i, j+1] = (image[i, j] + image[i, j+1]) / 2
@@ -212,6 +216,7 @@ def add_vertical_seam(image, seams):
                     output[i, j+2:] = image[i, j+1:]
             image = output
             w += 1
+            count += 1
             
     return output
 
