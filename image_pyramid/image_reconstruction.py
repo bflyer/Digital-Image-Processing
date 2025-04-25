@@ -1,4 +1,4 @@
-# usage: python .\image_restruction.py --input .\building.jpg -t 8 -s 1.0 -k 7
+# usage: python .\image_reconstruction.py --input .\input_images\building.jpg -t 8 -s 1.0 -k 7
 
 from gaussian_processing import *
 from laplacian_pyramid import *
