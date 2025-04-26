@@ -33,8 +33,7 @@ def Sobel_operator(image):
             # Compute x and y gradients
             dx[i-1, j-1] = np.sum(region * sobel_x)
             dy[i-1, j-1] = np.sum(region * sobel_y)
-    
-    # import pdb; pdb.set_trace()
+
     return dx, dy
 
 def compute_energy(image):
@@ -69,66 +68,78 @@ def find_vertical_seam(energy, num_seam=1):
     cost = energy.copy()
     # Record the column indices of minimal cost paths
     path = np.zeros_like(cost, dtype=np.int32)
+    mask = np.zeros((h, w), dtype=bool)
     
     seams = []
     
     # Dynamic programming to compute minimal cost paths
+    cycle = False
     for d in range(num_seam):
-        print(f"round {d}")
-        # if d == 24:
-            # import pdb; pdb.set_trace()
-        # for i in range(1, h): for j in range(w): min_idx = np.argmin(cost[i-1, j:j+2])
-        for i in range(1, h):
-            for j in range(w):
-                if j == 0:      # left boundary: can only go right or up
-                    min_idx = np.argmin(cost[i-1, j:j+2])
-                    cost[i, j] += cost[i-1, j + min_idx]
-                    path[i, j] = j + min_idx
-                elif j == w-1:  # right boundary: can only go left or up
-                    min_idx = np.argmin(cost[i-1, j-1:j+1])
-                    cost[i, j] += cost[i-1, j-1 + min_idx]
-                    path[i, j] = j-1 + min_idx
-                else:
-                    min_idx = np.argmin(cost[i-1, j-1:j+2])
-                    cost[i, j] += cost[i-1, j-1 + min_idx]
-                    path[i, j] = j-1 + min_idx
-            # print(f"{i}: {cost[i, :]}")
-            # import pdb; pdb.set_trace()
+        if cycle:
+            print("cycle~")
+            break
+        refresh = True
+        while refresh:
+            refresh = False
+            print(f"round {d}")
+            for i in range(1, h):
+                for j in range(w):
+                    if j == 0:      # left boundary: can only go right or up
+                        min_idx = np.argmin(cost[i-1, j:j+2])
+                        cost[i, j] += cost[i-1, j + min_idx]
+                        path[i, j] = j + min_idx
+                    elif j == w-1:  # right boundary: can only go left or up
+                        min_idx = np.argmin(cost[i-1, j-1:j+1])
+                        cost[i, j] += cost[i-1, j-1 + min_idx]
+                        path[i, j] = j-1 + min_idx
+                    else:
+                        min_idx = np.argmin(cost[i-1, j-1:j+2])
+                        cost[i, j] += cost[i-1, j-1 + min_idx]
+                        path[i, j] = j-1 + min_idx
 
-        seam = [np.argmin(cost[-1])]
-        for i in range(h-1, 0, -1):
-            seam.append(path[i, seam[-1]])
-        seam_reverse = seam[::-1]
-        seams.append(seam_reverse)
-        
-        # remove the seam
-        mask = np.zeros((h, w), dtype=bool)
-        for i in range(h):
-            mask[i, seam_reverse[i]] = True
-        
-        # update for next round
-        energy[mask] = np.inf
-        cost = energy.copy()
-        path = np.zeros_like(cost, dtype=np.int32)
+            seam = [np.argmin(cost[-1])]
+            if cost[-1, seam] == np.inf:
+                cycle = True
+                break
+            final_change = h-1
+            for i in range(h-1, 0, -1):
+                next = path[i, seam[-1]]
+                if cost[i-1, next] == np.inf:
+                    refresh = True
+                    final_change = i
+                    print("refresh ===================================")
+                    break
+                seam.append(next)
+                
+            seam_reverse = seam[::-1]
+            if not refresh:
+                final_change = 0
+                seams.append(seam_reverse)
+            
+            # mask the seam
+            for i in range(h - final_change):
+                mask[i+final_change, seam_reverse[i]] = True
+            
+            # update for next round
+            energy[mask] = np.inf
+            cost = energy.copy()
+            path = np.zeros_like(cost, dtype=np.int32)
     
-    # # TODO
-    # plt.imsave('output_image.png', cost, cmap='gray')
-    # plt.imshow(cost, cmap='gray')
-    # plt.title('二维 NumPy 数组')
-    # plt.colorbar()  # 添加颜色条
-    # plt.show()
-    
-    # Backtrack to find the seam
-    # import pdb; pdb.set_trace()
+    if cycle:
+        length = len(seams)
+        for i in range(length, num_seam):
+            seams.append(seams[i % length])
+        print(f"final length: {len(seams)}")
+        
     return seams
 
-def find_horizontal_seam(energy):
+def find_horizontal_seam(energy, num_seam=1):
     """
     Find horizontal seam with minimum energy by transposing the image.
     :param energy: Energy map (H, W)
     :return: List of row indices for the seam (length W)
     """
-    return find_vertical_seam(energy.T)
+    return find_vertical_seam(energy.T, num_seam)
 
 
 def remove_vertical_seam(image, seam):
@@ -141,8 +152,12 @@ def remove_vertical_seam(image, seam):
     if len(image.shape) == 3:
         h, w, c = image.shape
         mask = np.ones((h, w), dtype=bool)
-        for i in range(h):
-            mask[i, seam[i]] = False
+        try:
+            for i in range(h):
+                mask[i, seam[i]] = False
+        except IndexError:
+            print("Error: Seam length does not match image height")
+            import pdb; pdb.set_trace()
         return image[mask].reshape((h, w-1, c))
     else:
         h, w = image.shape
@@ -172,6 +187,9 @@ def add_vertical_seam(image, seams):
     :param seam: List of column indices (length H)
     :return: Image with seam added (H, W+1, 3) or (H, W+1)
     """
+    if seams == [] or seams is None:
+        return image
+    
     h, w = image.shape[:2]
     
     seams = np.array(seams)
@@ -181,7 +199,6 @@ def add_vertical_seam(image, seams):
     
     count = 0
     if len(image.shape) == 3:
-        output = np.zeros((h, w+1, 3))
         for seam in seams:
             output = np.zeros((h, w+1, 3))
             for i in range(h):
@@ -189,29 +206,28 @@ def add_vertical_seam(image, seams):
                 if j == 0:
                     # Left boundary case
                     output[i, j] = image[i, j]
-                    output[i, j+1] = (image[i, j] + image[i, j+1]) / 2
+                    output[i, j+1] = (image[i, j] / 2 + image[i, j+1] / 2).astype(int)
                     output[i, j+2:] = image[i, j+1:]
                 else:
                     output[i, :j] = image[i, :j]
-                    output[i, j] = (image[i, j-1] + image[i, j]) / 2
+                    output[i, j] = (image[i, j-1] / 2 + image[i, j] / 2).astype(int)
                     output[i, j+1:] = image[i, j:]
             image = output
             w += 1
             count += 1
-            
+
     else:
-        output = np.zeros((h, w+1))
         for seam in seams:
-            output = np.zeros((h, w+1, 3))
+            output = np.zeros((h, w+1))
             for i in range(h):
                 j = seam[i] + count
                 if j == 0:
                     output[i, j] = image[i, j]
-                    output[i, j+1] = (image[i, j] + image[i, j+1]) / 2
+                    output[i, j+1] = (image[i, j] / 2 + image[i, j+1] / 2).astype(int) 
                     output[i, j+2:] = image[i, j+1:]
                 else:
                     output[i, :j] = image[i, :j]
-                    output[i, j] = (image[i, j-1] + image[i, j]) / 2
+                    output[i, j] = (image[i, j-1] / 2 + image[i, j] / 2).astype(int)
                     output[i, j+1] = image[i, j]
                     output[i, j+2:] = image[i, j+1:]
             image = output
@@ -219,7 +235,6 @@ def add_vertical_seam(image, seams):
             count += 1
             
     return output
-
 
 def add_horizontal_seam(image, seams):
     """
@@ -266,8 +281,7 @@ def seam_carve(image, delta_width, delta_height):
         if delta_width != 0 and (delta_height == 0 or (alternate and delta_height != 0)):
             # Vertical operation
             energy = compute_energy(img)
-            seam = find_vertical_seam(energy)
-            # import pdb; pdb.set_trace()
+            seam = find_vertical_seam(energy)[0]
             
             img = remove_vertical_seam(img, seam)
             delta_width += 1
@@ -277,7 +291,7 @@ def seam_carve(image, delta_width, delta_height):
         elif delta_height != 0:
             # Horizontal operation
             energy = compute_energy(img)
-            seam = find_horizontal_seam(energy)
+            seam = find_horizontal_seam(energy)[0]
             
             img = remove_horizontal_seam(img, seam)
             delta_height += 1

@@ -58,7 +58,6 @@ class InteractiveMaskGenerator:
             elif key == ord('-'):
                 self.brush_size = max(1, self.brush_size - 2)
         
-        cv2.destroyAllWindows()
     
     def mouse_callback(self, event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:
